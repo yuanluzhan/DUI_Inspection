@@ -25,7 +25,6 @@ knowledge_strength = st.sidebar.slider('知识传播强度', min_value=0, max_va
 
 # 输入酒驾司机出发的节点位置
 source_region = st.sidebar.text_input("输入酒驾司机经常出发的节点位置", value="1")
-
 del_node_list = st.sidebar.text_input("输入应该删除的节点编号", value="")
 del_edge_list = st.sidebar.text_input("输入应该删除的边的节点对", value="")
 iter_times = st.sidebar.slider('迭代次数', min_value=0, max_value=50, value=2, step=1)
