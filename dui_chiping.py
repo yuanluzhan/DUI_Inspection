@@ -24,7 +24,6 @@ class scenario():
     f : the penalty for being caught, the DUI driver's penalty is negative and law-abiding driver's penalty is zero
     g : the reward for escaping check, the DUI driver's reward is positive and law-abiding driver's penalty is zero
     t : the importance of each road
-
     """
     def __init__(self,information_strength,num_friends,num_polices,num_drivers, num_dui_drivers,known_strategy,map_rows,map_cols):
         self.data_folder = 'data'+str(known_strategy)+'/'
