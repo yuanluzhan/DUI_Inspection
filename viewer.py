@@ -11,9 +11,6 @@ import ast
 
 # 设置页面标题
 st.title('酒驾检查点推荐系统')
-
-
-
 # 创建一个侧边栏
 st.sidebar.header('地图信息初始化')
 
@@ -24,7 +21,6 @@ num_duidrivers = st.sidebar.slider('酒驾司机数', min_value=10, max_value=10
 n_rows = st.sidebar.slider('行数', min_value=3, max_value=20, value=5, step=1)
 n_columns = st.sidebar.slider('列数', min_value=3, max_value=20, value=5, step=1)
 knowledge_strength = st.sidebar.slider('知识传播强度', min_value=0, max_value=10, value=3, step=1)
-
 
 # 输入酒驾司机出发的节点位置
 source_region = st.sidebar.text_input("输入酒驾司机经常出发的节点位置", value="1")
