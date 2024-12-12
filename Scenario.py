@@ -27,10 +27,6 @@ class scenario():
 
     """
     def __init__(self,information_strength,num_friends,num_polices,num_drivers, num_dui_drivers,known_strategy,map_rows,map_cols):
-        self.data_folder = 'data'+str(known_strategy)+'/'
-        if not os.path.exists(self.data_folder):
-            os.mkdir(self.data_folder)
-        v_high = 0.3
         # 初始化司机个数
         self.num_drivers = num_drivers
         self.num_DUI_drivers = num_dui_drivers
@@ -58,35 +54,9 @@ class scenario():
         self.num_friends = np.random.randint(0, num_friends, size=self.num_drivers)
         self.known_strategy = known_strategy
 
-        # PSO优化算法
 
-        self.n_particles = 10
-        self.lb = 0
-        self.ub = 1
-        self.V = np.random.uniform(low=-v_high, high=v_high, size=(self.n_particles, self.roads))
-        self.X = np.random.uniform(low=self.lb, high=self.ub, size=(self.n_particles, self.roads))
-        for i in range(self.X.shape[0]):
-            self.X[i,:] = self.X[i,:]* self.num_polices/np.sum(self.X[i,:])
-
-
-
-        self.pbest_x = self.X.copy()  # personal best location of every particle in history
-        self.pbest_y = np.array([[np.inf]] * self.n_particles)  # best image of every particle in history
-        self.gbest_x = self.pbest_x.mean(axis=0).reshape(1, -1)  # global best location for all particles
-        self.gbest_y = np.inf  # global best y for all particles
-        self.gbest_y_hist = []  # gbest_y of every iteration
-
-        self.w = 0.8  # inertia
-        self.cp, self.cg = 0.5, 0.5
-        # parameters to control personal best, global best respectively
-        self.n_dim = self.roads  # dimension of particles, which is the number of variables of func
-        self.max_iter = 10  # max iter
         self.record_mode = False
         self.record_path = '_f_'+str(num_friends) + '_i_' + str(self.information_strength) + '_p_' + str(num_polices) + '_dui_' +str(num_dui_drivers)
-
-
-
-
 
     def mapinit(self,m,n,del_node_list = [], del_edge_list = [],source_regions = []):
         "m: rows,   n: con"
@@ -132,6 +102,7 @@ class scenario():
             self.source_regions = a.nodes
 
         return a
+
     def belief(self,u,v,index):
         # return the brief probability
         k = int(self.map_index[u,v])
@@ -284,205 +255,7 @@ class scenario():
 
         return -np.sum(pay_defenders, axis=0)
 
-    def update_V(self):
-        r1 = np.random.rand(self.n_particles, self.roads)
-        r2 = np.random.rand(self.n_particles, self.roads)
-        self.V = self.w * self.V + \
-                 self.cp * r1 * (self.pbest_x - self.X) + \
-                 self.cg * r2 * (self.gbest_x - self.X)
-
-    def update_X(self):
-        # print(np.sum(self.V))
-        self.X = self.X + self.V
-        # self.X = np.clip(self.X, 0, 1)
-        # X: (n_roads, n_粒子）
-        self.X = np.clip(self.X, 0, 1)
-        for i in range(self.X.shape[0]):
-            self.X[i, :] = self.X[i, :]*self.num_polices / (np.sum(self.X[i, :]))
-
-    def cal_y(self):
-        # calculate y for every x in X
-        # self.Y = self.get_payoff(self.X).reshape(-1, 1)
-        tmp = []
-        for i in range(self.X.shape[0]):
-            tmp.append([self.get_payoff(self.X[i,:])])
-        self.Y = np.array(tmp)
-
-        return self.Y
-
-    def update_pbest(self):
-        '''
-        personal best
-        :return:
-        '''
-        self.need_update = self.pbest_y > self.Y
-        # self.need_update = self.need_update[1]
-        # for idx, x in enumerate(self.X):
-        #     if self.need_update[idx]:
-        #         self.need_update[idx] = self.check_constraint(x)
-
-        self.pbest_y = np.where(self.need_update, self.Y, self.pbest_y)
-        self.pbest_x = np.where(self.need_update, self.X, self.pbest_x)
-
-    def update_gbest(self):
-        '''
-        global best
-        :return:
-        '''
-        idx_min = self.pbest_y.argmin()
-        if self.gbest_y > self.pbest_y[idx_min]:
-            self.gbest_x = self.X[idx_min, :].copy()
-            self.gbest_y = self.pbest_y[idx_min]
-
-    def recorder(self):
-        if not self.record_mode:
-            return
-        self.record_value['X'].append(self.X)
-        self.record_value['V'].append(self.V)
-        self.record_value['Y'].append(self.Y)
-
-    def run(self, max_iter=None, precision=0.01):
-        '''
-        precision: None or float
-            If precision is None, it will run the number of max_iter steps
-            If precision is a float, the loop will stop if continuous N difference between pbest less than precision
-        N: int
-        '''
-        self.max_iter = max_iter
-        c = 0
-        for iter_num in range(self.max_iter):
-            self.update_V()
-            self.recorder()
-            self.update_X()
-            self.cal_y()
-            self.update_pbest()
-            self.update_gbest()
-            if precision is not None:
-                tor_iter = np.amax(self.pbest_y) - np.amin(self.pbest_y)
-                if tor_iter < precision:
-                    c = c + 1
-                    if c > self.max_iter:
-                        break
-                else:
-                    c = 0
-            # if self.verbose:
-            print('Iter: {}, Best fit: {} at {}'.format(iter_num, self.gbest_y, self.gbest_x))
-            self.gbest_y_hist.append(self.gbest_y)
-        self.best_x, self.best_y = self.gbest_x, self.gbest_y
-
-        return self.best_x, self.best_y
-
-    def save(self):
-        # it is related to the distribution of the drunk drivers.
-        # tmp = self.p
-
-        anyone = self.get_payoff(self.p)
-        strategy = np.array(self.p)
-        pay_defenders = np.array(self.pay_defenders)
-        prior_konwledge = np.array(self.prior_knowledge)
-        pay_attackers = np.array(self.pay_attackers)
-        data_folder = self.data_folder
 
 
 
-        np.save(data_folder+'p_caught'+self.record_path,np.array(self.p_caughts))
-        np.save(data_folder+'pay_defender'+self.record_path,pay_defenders)
-        np.save(data_folder+'strategy'+self.record_path, strategy)
-        np.save(data_folder+'prior_konwledge'+self.record_path,prior_konwledge)
-        np.save(data_folder+'pay_attacker'+self.record_path, pay_attackers)
-        # np.save(data_folder+'paths'+self.record_path,self.save_paths)
 
-
-    def test_diff(self,p):
-        anyone = self.get_payoff(p)
-        pay_defenders = np.array(self.pay_defenders)
-        prior_konwledge = np.array(self.prior_knowledge)
-        pay_attackers = np.array(self.pay_attackers)
-        strategy = np.array(self.p)
-        print(np.sum(pay_defenders))
-
-
-    def test2(self):
-        p_caught = np.load('data/'+'p_caught'+self.record_path+'.npy')
-        pay_defender = np.load('data/'+'pay_defender'+self.record_path+'.npy')
-        strategy =  np.load('data/'+'strategy' +self.record_path+'.npy')
-        prior_knowledge = np.load('data/'+'prior_konwledge'+self.record_path+'.npy')
-        pay_attacker =  np.load('data/'+'pay_attacker'+self.record_path+'.npy')
-        gap = []
-        payoff = []
-        p = []
-        attacker = []
-
-        print(prior_knowledge.shape)
-        for i in range(p_caught.shape[0]):
-            # print(strategy)
-            # print(prior_knowledge.shape)
-            # print(prior_knowledge[i])
-            tmp = np.sum(abs(strategy-prior_knowledge[i]))
-            if pay_defender[i]!=0:
-                gap.append(tmp)
-                payoff.append(pay_defender[i])
-                attacker.append(pay_attacker[i])
-                p.append(p_caught[i])
-        x = np.arange(0,len(gap))
-        # plt.plot(x,gap)
-        #
-        # plt.show()
-        trace1 = go.Scatter(x=x,y=gap,mode='lines',name='gap')
-        trace2 = go.Scatter(x=x,y=payoff,mode='lines',name='pay_defender')
-        trace3 = go.Scatter(x=x,y=p,mode='lines',name='p')
-        fig = make_subplots(rows=3,  # 将画布分为两行
-                            cols=1,  # 将画布分为两列
-                            subplot_titles=["gap"+str(self.information_strength),
-                                            "pay_defender",
-                                            "p"
-                                            ],
-                            # 子图的标题
-                            x_title="x轴标题",
-                            y_title="y轴标题"
-                            )
-        fig.add_trace(trace1,1,1)
-        fig.add_trace(trace2,2,1)
-        fig.add_trace(trace3, 3, 1)
-        #pio.show(fig)
-
-        pio.write_image(fig,'figures/'+self.record_path+'.png',format='png')
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--num_friends', help="num of friends",type=int,default=30)
-    parser.add_argument('--information_strength', help="information gap", type=float, default=0.4)
-    parser.add_argument('--gap_type', help="gap type", type=int, default=0)
-    parser.add_argument('--known_strategy', help="gap type", type=int, default=0)
-    parser.add_argument('--num_polices', help="gap type", type=int, default=3)
-    parser.add_argument('--num_dui_drivers', help="gap type", type=int, default=100)
-    parser.add_argument('--num_drivers', help="gap type", type=int, default=1000)
-    parser.add_argument('--n_rows', help="gap type", type=int, default=5)
-    parser.add_argument('--n_columns', help="gap type", type=int, default=5)
-    args = parser.parse_args()
-    # record = np.zeros((29*29,3))
-    # for i in range(29):
-    #     for j in range(29):
-    #         if os.path.exists('data1/pay_defender'+str((j+1)*3)+'_infor' + str(((i+1)*3)/100) + '.npy'):
-    #             pay_defender = np.sum(np.load('data1/pay_defender'+str((j+1)*3)+'_infor' + str(((i+1)*3)/100) + '.npy'))
-    #             record[i*7+j][0]= ((i+1)*3)/100
-    #             record[i*7+j][1] = ((j+1)*3)
-    #             record[i*7+j][2]=pay_defender
-    # np.around(record,3)
-    # np.savetxt("all_path.csv",record,delimiter=',',fmt='%.2f')
-    # print(record)
-
-    # dui_object = scenario(knowledge_strength, 30, num_polices, num_drivers, num_duidrivers, 1, n_rows, n_columns)
-
-    a = scenario(num_friends=args.num_friends,
-                 information_strength=args.information_strength,
-                 num_polices=args.num_polices,
-                 num_dui_drivers=args.num_dui_drivers,
-                 known_strategy=0,
-                 num_drivers=args.num_drivers,
-                 map_rows = args.n_rows,
-                 map_cols = args.n_columns
-                 )
-    a.run()
-    a.save()
-    # a.test2()
